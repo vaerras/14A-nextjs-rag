@@ -8,8 +8,9 @@
  */
 import { openai } from '@ai-sdk/openai';
 import { streamText, tool, embed } from 'ai';
-import { Index } from '@upstash/vector';
+import { Index, WeightingStrategy, FusionAlgorithm } from '@upstash/vector';
 import { z } from 'zod';
+import { querySparseVector } from '@/lib/sparse';
 
 const index = new Index();
 
@@ -64,8 +65,12 @@ Rules:
             model: openai.embedding('text-embedding-3-small'),
             value: query,
           });
+          // Hybrid search: dense (semantic) + sparse (BM25 keyword), merged with RRF.
           const hits = await index.query({
             vector: embedding,
+            sparseVector: querySparseVector(query),
+            weightingStrategy: WeightingStrategy.IDF,
+            fusionAlgorithm: FusionAlgorithm.RRF,
             topK: 4,
             includeMetadata: true,
           });

@@ -18,6 +18,7 @@ import { embedMany } from 'ai';
 import { openai } from '@ai-sdk/openai';
 // pdf-parse uses CommonJS; default-import the parser fn
 import pdfParse from 'pdf-parse';
+import { documentSparseVector, tokenize } from './sparse';
 
 const PDF_PATH = path.join(process.cwd(), 'data', 'sample.pdf');
 const CHUNK_SIZE = 800;
@@ -82,10 +83,15 @@ async function main() {
     values: chunks.map((c) => c.text),
   });
 
+  // Hybrid index: every record needs a dense vector AND a sparse (BM25) vector.
+  const avgDocLength =
+    chunks.reduce((sum, c) => sum + tokenize(c.text).length, 0) / Math.max(chunks.length, 1);
+
   const index = new Index();
   const records = chunks.map((c, i) => ({
     id: `chunk_${i}`,
     vector: embeddings[i],
+    sparseVector: documentSparseVector(c.text, avgDocLength),
     metadata: { text: c.text, page: c.page },
   }));
 
